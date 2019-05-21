@@ -8,7 +8,8 @@ from scipy.linalg import eigh
 import fsolve_example
 import Tkinter
 import matplotlib.animation as animation
-
+from scipy.interpolate import splprep, splev
+import someshit
 
 
 def lumped_mass_cantaliver_nat_freq(I,E,L,m):
@@ -80,13 +81,15 @@ def compute_approxomate_AI(X,Y):
 	I_approx = K_I*(c**4)*tou*((tou**2) + (eps**2))
 	return A_approx,I_approx
 
-def PolyArea(x,y):
+def PolyArea(pts):
+	x = pts[:,0]
+	y = pts[:,1]
 	return 0.5*np.abs(np.dot(x,np.roll(y,1))-np.dot(y,np.roll(x,1)))
 
-def compute_exact_AI(X,Y):
-	A = PolyArea(X,Y)
-	I = 100
-	return A,I
+def compute_exact_AI(pts,shape):
+	A = PolyArea(pts)
+	Ixx, Iyy, Ixy = someshit.inertia(shape)
+	return A,Ixx
 
 def compute_poly_AI(X,Y):
 	##Area Calc
@@ -202,21 +205,24 @@ def Euler_Bournoulli_Clamped_Free_mode_shape_function(mode_number,x):
 profile = '2612'
 X,Y = naca.naca(profile,600)
 
+
 ##Tungsten Alloy (90W,7Ni,3Fe)
 E = 650*10**6		#N/m^2
-L = 0.5			#m
+L = 0.05			#m
 rho = 1710			#kg/m^3
 
 ##scale profile
 X = [x*L for x in X]
 Y = [x*L for x in Y]
+pts = np.column_stack((np.array(list(X)),np.array(list(Y))))
+shape = list(zip(X,Y))
 
 print'Material Choice Tungsten Alloy (90W,7Ni,3Fe)'
 print'Properties: E = {} N/m^3 \t L = {} m \t rho = {} kg/m^3'.format(E,L,rho)
 
 ###compute Profile Geometric Properties
 A_approx,Ix_approx = compute_approxomate_AI(X,Y)
-A_exact,I_exact = compute_exact_AI(X,Y)
+A_exact,I_exact = compute_exact_AI(pts,shape)
 A_poly,Ix_poly,Iy_poly,Ixy_poly,Cx_poly,Cy_poly = compute_poly_AI(X,Y)
 
 m_approx = rho*L*A_approx 
@@ -287,7 +293,11 @@ plt.show()
  
 #plot profile	
 #d = Display()
-plt.figure(2)
+tck, u = splprep(pts.T, u=None, s=0.0, per=1) 
+u_new = np.linspace(u.min(), u.max(), 1000)
+x_new, y_new = splev(u_new, tck, der=0)
+plt.plot(x_new, y_new, 'b--')
+plt.axis('equal')
 plt.plot(X,Y)
 plt.plot(Cx_poly,Cy_poly,'ro')
 plt.axis('equal')
