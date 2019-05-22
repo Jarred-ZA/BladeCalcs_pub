@@ -4,17 +4,6 @@ import numpy as np
 from itertools import product, combinations
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-def get_profile():
-	import csv
-	x = []
-	y = []
-	all_lines = []
-	with open('profile.txt') as f:
-		reader = csv.reader(f)
-		for count ,(c1,c2) in enumerate(reader):
-			x.append(float(c1))
-			y.append(float(c2))
-	return x,y
 def compute_poly_AI(X,Y):
 	##Area Calc
 	A = 0
@@ -42,6 +31,7 @@ def compute_poly_AI(X,Y):
 	Iy = Iy/12
 	Ixy = Ixy/24
 	return A,Ix,Iy,Ixy,Cx,Cy
+
 def rotate_around_point(x, y, radians, x_pt,y_pt):
 
 	adjusted_x = np.subtract(x,x_pt)
@@ -50,6 +40,7 @@ def rotate_around_point(x, y, radians, x_pt,y_pt):
 	qx = x_pt + np.cos(radians) * adjusted_x + np.sin(radians) * adjusted_y
 	qy = y_pt + -np.sin(radians) * adjusted_x + np.cos(radians) * adjusted_y
 	return qx, qy
+	
 def plotter(X,Y,twist,layers):
 	fig = plt.figure()
 	ax = fig.gca(projection='3d')

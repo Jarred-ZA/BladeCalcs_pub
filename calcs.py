@@ -11,8 +11,6 @@ def lumped_mass_cantaliver_nat_freq(I,E,L,m):
 def distributed_mass_cantaliver_nat_freq(I,E,L,A,rho,number):
 	k = E*I/(rho*A) 
 	nat_freq = [] 
-	#for i in xrange(1,number):
-		#nat_freq.append(((		(2*number -1)		*math.pi/2)**2)/((L**2)*math.sqrt(k))*((1/(2*math.pi))))
 	nat_freq.append(((0.59686*math.pi)**2)/((L**2)*math.sqrt(k))*((1/(2*math.pi))))
 	nat_freq.append(((1.49418*math.pi)**2)/((L**2)*math.sqrt(k))*((1/(2*math.pi))))
 	nat_freq.append(((2.50025*math.pi)**2)/((L**2)*math.sqrt(k))*((1/(2*math.pi))))
@@ -160,7 +158,6 @@ def area(pts):
     s += x[i]*y[i+1] - x[i+1]*y[i]
   return s/2
 
-
 def centroid(pts):
   # 'Location of centroid.'
   
@@ -174,7 +171,6 @@ def centroid(pts):
     sx += (x[i] + x[i+1])*(x[i]*y[i+1] - x[i+1]*y[i])
     sy += (y[i] + y[i+1])*(x[i]*y[i+1] - x[i+1]*y[i])
   return sx/(6*a), sy/(6*a)
-
 
 def inertia(pts):
   # 'Moments and product of inertia about centroid.'
@@ -191,7 +187,6 @@ def inertia(pts):
     syy += (x[i]**2 + x[i]*x[i+1] + x[i+1]**2)*(x[i]*y[i+1] - x[i+1]*y[i])
     sxy += (x[i]*y[i+1] + 2*x[i]*y[i] + 2*x[i+1]*y[i+1] + x[i+1]*y[i])*(x[i]*y[i+1] - x[i+1]*y[i])
   return sxx/12 - a*cy**2, syy/12 - a*cx**2, sxy/24 - a*cx*cy
-
 
 def principal(Ixx, Iyy, Ixy):
   # 'Principal moments of inertia and orientation.'

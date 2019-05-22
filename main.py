@@ -66,9 +66,12 @@ def main():
 
 	exact_frequency = math.pi/2
 	results = []
-	for i in range(1,10):
-		M, K, frequencies, evecs = fem.bar(i,E,Ix_poly,L,m_poly,rho,A_poly)
-	print 'Fund. Frequency: {}'.format( round(frequencies[0],3))
+	i = 2
+	M, K, frequencies, evecs = fem.bar(i,E,Ix_poly,L,m_poly,rho,A_poly)
+	print 'FEM bar Frequency: {}'.format(frequencies)
+
+	M, K, frequencies, evecs = fem.beam(i,E,Ix_poly,L,m_poly,rho,A_poly)
+	print 'FEM beam Frequency: {}'.format(frequencies)
 
 	#print 'Exact frequency: ', round(exact_frequency,3)
 
@@ -116,7 +119,7 @@ def main():
 	plot3D.plotter(X,Y,0.1,25)
 
 	pass
-	
+
 if __name__ == '__main__':
 	main()
 	sys.exit()
