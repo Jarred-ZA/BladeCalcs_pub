@@ -11,19 +11,6 @@ import fem
 import plot3D
 
 
-# def get_profile():
-
-# 	x = []
-# 	y = []
-# 	all_lines = []
-# 	with open('profile.txt') as f:
-# 		reader = csv.reader(f)
-# 		for count ,(c1,c2) in enumerate(reader):
-# 			x.append(float(c1))
-# 			y.append(float(c2))
-# 	return x,y
-
-
 ##unit profile
 #X,Y = get_profile()
 profile = '2612'
