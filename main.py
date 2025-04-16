@@ -1,124 +1,152 @@
 import sys
 import math
-import numpy as np 
-import naca
-import csv
+import numpy as np
 import matplotlib.pyplot as plt
-from scipy.interpolate import InterpolatedUnivariateSpline
-import Tkinter
-import matplotlib.animation as animation
-import calcs
-import fem
-import plot3D
+import naca # Import the naca module
+from calcs import run_calculations, compute_poly_AI, rotate_around_point, Euler_Bournoulli_Clamped_Free_mode_shape_function
 
 def main():
-	##unit profile
-	#X,Y = get_profile()
-	profile = '2612'
-	X,Y = naca.naca(profile,600)
+	# Define input parameters
+	E = 650000000  # Young's modulus (N/m^2)
+	L = 0.05       # Length (m)
+	rho = 1710     # Density (kg/m^3)
+	twist = 0.1    # Twist factor (used for visualization)
+	layers = 25     # Number of layers for 3D plot visualization
 
+	# --- Generate Profile --- 
+	profile_number = '2412'
+	n_points_per_side = 300 # Leads to 2*n+1 = 601 total points
+	print(f"Generating NACA {profile_number} profile...")
+	X_base, Y_base = naca.naca(profile_number, n_points_per_side)
+	# Convert to numpy arrays if they aren't already (naca.py likely returns lists)
+	X_base = np.array(X_base)
+	Y_base = np.array(Y_base)
 
-	##Tungsten Alloy (90W,7Ni,3Fe)
-	E = 650*10**6		#N/m^2
-	L = 0.05			#m
-	rho = 1710			#kg/m^3
+	print("Running Blade Calculations...")
 
-	##scale profile
-	X = [x*L for x in X]
-	Y = [x*L for x in Y]
-	pts = np.column_stack((np.array(list(X)),np.array(list(Y))))
-	shape = list(zip(X,Y))
+	# --- Perform Calculations & Print Results ---
+	# Pass the generated X_base, Y_base to the calculation function
+	results_string = run_calculations(X_base, Y_base, E, L, rho)
+	print(results_string)
 
-	print'Material Choice Tungsten Alloy (90W,7Ni,3Fe)'
-	print'Properties: E = {} N/m^3 \t L = {} m \t rho = {} kg/m^3'.format(E,L,rho)
+	print("Generating Plots...")
 
-	###compute Profile Geometric Properties
-	A_approx,Ix_approx = calcs.compute_approxomate_AI(X,Y)
-	A_exact,I_exact = calcs.compute_exact_AI(pts,shape)
-	A_poly,Ix_poly,Iy_poly,Ixy_poly,Cx_poly,Cy_poly = calcs.compute_poly_AI(X,Y)
+	# --- Generate Plots ---
+	# Base profile is already generated (X_base, Y_base)
 
-	m_approx = rho*L*A_approx 
-	m_exact = rho*L*A_exact
-	m_poly = rho*L*A_poly
+	# Create a figure and a 2x2 subplot grid
+	fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+	fig.suptitle('Blade Analysis Plots', fontsize=16)
 
-	print '\nArea_approx = {}\tI_approx = {}\tmass_approx = {}'.format(A_approx,Ix_approx,m_approx)
-	print 'Area_exact = {}\tI_exact = {}\t\t\t\t\tmass_exact = {}'.format(A_exact,I_exact,m_exact)
-	print 'Area_tri = {}\tIxy_poly = {}\tmass_poly = {}\nIx_poly = {}\t\tIy_poly = {}'.format(A_poly,Ixy_poly,m_poly,Ix_poly,Iy_poly)
+	# --- Plot 1: 2D Profile (Top-Left) ---
+	ax1 = axes[0, 0]
+	ax1.plot(X_base, Y_base, 'b-', label='Profile')
+	
+	# Calculate and plot the centroid
+	_, _, _, _, Cx, Cy = compute_poly_AI(X_base, Y_base)
+	ax1.plot(Cx, Cy, 'ro', markersize=8, label='Centroid (CoM)') # 'ro' for red circle
+	
+	ax1.set_title(f'2D Blade Profile (NACA {profile_number})') # Update title
+	ax1.set_xlabel('Chord Fraction')
+	ax1.set_ylabel('Thickness / Camber Fraction') # More accurate label
+	ax1.set_aspect('equal', adjustable='box')
+	ax1.grid(True)
+	
+	# Expand y-axis limits for legend space (increase expansion factor)
+	current_ylim = ax1.get_ylim()
+	y_center = (current_ylim[1] + current_ylim[0]) / 2
+	y_range = current_ylim[1] - current_ylim[0]
+	# Apply a 4x expansion relative to the original auto-range (2 * previous doubled range)
+	ax1.set_ylim(y_center - y_range * 2, y_center + y_range * 2)
 
+	# Position legend inside the plot area, top right
+	ax1.legend(loc='upper right')
 
-	#print '\n####Anylitical Solution approx####'
-	number = 4
-	## Assume I_exact = Ix_poly
-	I_exact = Ix_poly
-	lumped_nat_freq_approx = calcs.lumped_mass_cantaliver_nat_freq(Ix_approx,E,L,m_approx)
-	lumped_nat_freq_exact = calcs.lumped_mass_cantaliver_nat_freq(I_exact,E,L,m_exact)
-	lumped_nat_freq_poly = calcs.lumped_mass_cantaliver_nat_freq(Ix_poly,E,L,m_poly)
-	distributed_nat_freq_approx = calcs.distributed_mass_cantaliver_nat_freq(Ix_approx,E,L,A_approx,rho,number)
-	distributed_nat_freq_exact = calcs.distributed_mass_cantaliver_nat_freq(I_exact,E,L,A_exact,rho,number)
-	distributed_nat_freq_poly = calcs.distributed_mass_cantaliver_nat_freq(Ix_poly,E,L,A_poly,rho,number)
+	# --- Plot 2: 3D Twisted Blade (Top-Right) ---
+	ax2 = fig.add_subplot(2, 2, 2, projection='3d') # Use fig.add_subplot for 3D
+	
+	Z_coords = np.linspace(0, L, layers) # Use actual length L for z-coordinates
+	# Calculate twist per layer based on total twist angle (e.g., twist * pi)
+	total_twist_angle = twist * np.pi # Example: twist=0.1 -> 0.1*pi total twist
+	twist_per_layer = total_twist_angle / (layers - 1) if layers > 1 else 0
 
-	print'\n'
-	print 'lumped_approx {} Hz\t\tdist_approx {} Hz'.format(lumped_nat_freq_approx, distributed_nat_freq_approx)
-	print 'Lumped_exact {} Hz\t\tdist_exact {} Hz'.format(lumped_nat_freq_exact, distributed_nat_freq_exact)
-	print 'lumped_poly {} Hz\t\tdist_poly {} Hz'.format(lumped_nat_freq_poly, distributed_nat_freq_poly)
+	X_current, Y_current = X_base.copy(), Y_base.copy()
+	# Compute initial centroid for rotation
+	A_init, _, _, _, Cx_init, Cy_init = compute_poly_AI(X_current, Y_current)
+	
+	# Store initial coords for plot limits
+	all_x = [X_current]
+	all_y = [Y_current]
+	
+	for i, z_val in enumerate(Z_coords):
+		ax2.plot(X_current, Y_current, zs=z_val, zdir='z', color='b')
+		if i < layers - 1: # Don't rotate after plotting the last layer
+			 # Rotate around the initial centroid for consistent axis
+			X_current, Y_current = rotate_around_point(X_current, Y_current, twist_per_layer, Cx_init, Cy_init)
+			all_x.append(X_current)
+			all_y.append(Y_current)
 
-	print '\nEuler-Bournoulli Clamped-Free\t\t{} Hz'.format(calcs.Euler_Bournoulli_Clamped_Free_frequancy(L,E,Ix_poly,rho,A_poly,number))
+	ax2.set_title('3D Twisted Blade Visualization')
+	ax2.set_xlabel('X')
+	ax2.set_ylabel('Y')
+	ax2.set_zlabel('Z (Length)')
+	
+	# Set consistent limits for 3D plot based on rotated profiles
+	min_x, max_x = np.min(np.concatenate(all_x)), np.max(np.concatenate(all_x))
+	min_y, max_y = np.min(np.concatenate(all_y)), np.max(np.concatenate(all_y))
+	range_x = max_x - min_x
+	range_y = max_y - min_y
+	mid_x, mid_y = (max_x + min_x)/2, (max_y + min_y)/2
+	plot_range = max(range_x, range_y, L) # Make bounding box roughly cubic
+	ax2.set_xlim(mid_x - plot_range/2, mid_x + plot_range/2)
+	ax2.set_ylim(mid_y - plot_range/2, mid_y + plot_range/2)
+	ax2.set_zlim(0, L)
+	# ax2.set_aspect('equal') # Often tricky with 3D plots, using manual limits
 
-	exact_frequency = math.pi/2
-	results = []
-	i = 2
-	M, K, frequencies, evecs = fem.bar(i,E,Ix_poly,L,m_poly,rho,A_poly)
-	print 'FEM bar Frequency: {}'.format(frequencies)
+	# --- Plot 3: Mode Shapes (Bottom-Left) ---
+	ax3 = axes[1, 0]
+	num_modes_to_plot = 4
+	x_mode = np.linspace(0, L, 100) # Points along the length to plot shapes
+	
+	for mode_index in range(num_modes_to_plot):
+		# Mode numbers typically start from 1, but function might use 0-based index?
+		# Let's assume function expects 1-based index for mode_number.
+		# Check calcs.py: Euler_Bournoulli_Clamped_Free_mode_shape_function uses Bnl[mode_number]
+		# Bnl likely 0-indexed, but the function itself seems to take mode_number (1, 2, 3...)
+		# Let's pass mode_number = mode_index + 1 
+		mode_number = mode_index + 1
+		# Now call the directly imported function
+		y_mode = Euler_Bournoulli_Clamped_Free_mode_shape_function(L, mode_number, x_mode)
+		ax3.plot(x_mode, y_mode, label=f'Mode {mode_number}')
 
-	M, K, frequencies, evecs = fem.beam(i,E,Ix_poly,L,m_poly,rho,A_poly)
-	print 'FEM beam Frequency: {}'.format(frequencies)
+	# ax3.text(0.5, 0.5, 'Plot Area 3 (Empty)', ha='center', va='center', fontsize=12, alpha=0.5)
+	# ax3.set_xticks([])
+	# ax3.set_yticks([])
+	# ax3.spines['top'].set_visible(False)
+	# ax3.spines['right'].set_visible(False)
+	# ax3.spines['bottom'].set_visible(False)
+	# ax3.spines['left'].set_visible(False)
+	ax3.set_title('Mode Shapes')
+	ax3.set_xlabel('Position along Length (m)')
+	ax3.set_ylabel('Relative Amplitude')
+	ax3.grid(True)
+	ax3.legend()
 
-	#print 'Exact frequency: ', round(exact_frequency,3)
+	# --- Plot 4: Empty (Bottom-Right) ---
+	ax4 = axes[1, 1]
+	ax4.text(0.5, 0.5, 'Plot Area 4 (Empty)', ha='center', va='center', fontsize=12, alpha=0.5)
+	ax4.set_xticks([])
+	ax4.set_yticks([])
+	ax4.spines['top'].set_visible(False)
+	ax4.spines['right'].set_visible(False)
+	ax4.spines['bottom'].set_visible(False)
+	ax4.spines['left'].set_visible(False)
 
-	# plot the results
-	elements = np.array([x[0] for x in results])
-	errors   = np.array([x[1] for x in results])
-	plt.figure(1)
-	plt.plot(elements,errors, 'o-')
-	#plt.xlim(elements[0], elements[-1])
-	plt.xlabel('Number of Elements')
-	plt.ylabel('Error (%)')
-	plt.close()
+	# --- Final Adjustments & Display ---
+	plt.tight_layout(rect=[0, 0.03, 1, 0.95]) # Adjust layout to prevent title overlap
 	plt.show()
 
-	points = 100
-	x = np.linspace(0,L,points)
-
-	for i in xrange(0,5):
-
-	    y = np.arange(points)
-
-	    ##get Y values
-	    y = calcs.Euler_Bournoulli_Clamped_Free_mode_shape_function(L,i,x)
-	    plt.plot(x,y,'-')
-
-
-	plt.grid(True,which = 'both')
-	plt.show()
-
-	 
-	#plot profile	
-	X_spline,Y_spline = calcs.spline(pts)
-	plt.plot(X_spline, Y_spline , 'b--')
-	plt.axis('equal')
-	plt.plot(X,Y)
-	plt.plot(Cx_poly,Cy_poly,'ro')
-	plt.axis('equal')
-	plt.xlabel('x')
-	plt.ylabel('y')
-	plt.grid(True)
-	#plt.legend('profile')
-	plt.text(Cx_poly,Cy_poly,'({},{})'.format(round(Cx_poly,2),round(Cy_poly,2)))
-	plt.show()
-	##plot 3D 
-	plot3D.plotter(X,Y,0.1,25)
-
-	pass
+	print("Done.")
 
 if __name__ == '__main__':
 	main()
