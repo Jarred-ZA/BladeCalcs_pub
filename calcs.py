@@ -303,7 +303,7 @@ def inertia(pts):
     for i in range(len(pts) - 1):
         sxx += (y[i]**2 + y[i]*y[i+1] + y[i+1]**2)*(x[i]*y[i+1] - x[i+1]*y[i])
         syy += (x[i]**2 + x[i]*x[i+1] + x[i+1]**2)*(x[i]*y[i+1] - x[i+1]*y[i])
-        sxy += (x[i]*y[i+1] + 2*x[i]*y[i] + 2*x[i+1]*y[i+1] + x[i+1]*y[i])*(x[i]*y[i+1] - x[i+1]*y[i])
+        sxy += (x[i]*y[i+1] + 2*x[i]*y[i] + 2*x[i+1]*y[i+1] + x[i+1]*y[i+1])*(x[i]*y[i+1] - x[i+1]*y[i])
     return sxx/12 - a*cy**2, syy/12 - a*cx**2, sxy/24 - a*cx*cy
 
 def principal(Ixx, Iyy, Ixy):
@@ -355,8 +355,18 @@ def run_calculations(X, Y, E, L, rho):
     lumped_poly = calculate_lumped_frequency(E, Ix_poly, L, mass_poly)
     dist_poly = calculate_distributed_frequency(E, Ix_poly, L, rho, A_poly)
     
-    # --- Format Results String --- 
-    results = """
+    # --- Store Frequency Results for Plotting --- 
+    frequency_data = {
+        'lumped_approx': lumped_approx,
+        'dist_approx': dist_approx,
+        'lumped_exact': lumped_exact,
+        'dist_exact': dist_exact,
+        'lumped_poly': lumped_poly,
+        'dist_poly': dist_poly
+    }
+
+    # --- Format Results String for Terminal --- 
+    results_string = f"""
 ========================================
         BLADE CALCULATION RESULTS
 ========================================
@@ -385,7 +395,8 @@ NATURAL FREQUENCIES (Hz):
 
 ========================================
 """
-    return results
+    # Return both the formatted string and the frequency data dictionary
+    return results_string, frequency_data
 
 def calculate_approximate_properties(X, Y, L, rho):
     # Simple rectangular approximation

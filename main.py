@@ -12,29 +12,25 @@ def main():
 	rho = 1710     # Density (kg/m^3)
 	twist = 0.1    # Twist factor (used for visualization)
 	layers = 25     # Number of layers for 3D plot visualization
-
-	# --- Generate Profile --- 
 	profile_number = '2412'
 	n_points_per_side = 300 # Leads to 2*n+1 = 601 total points
+
+	# --- Generate Profile --- 
 	print(f"Generating NACA {profile_number} profile...")
 	X_base, Y_base = naca.naca(profile_number, n_points_per_side)
-	# Convert to numpy arrays if they aren't already (naca.py likely returns lists)
 	X_base = np.array(X_base)
 	Y_base = np.array(Y_base)
 
 	print("Running Blade Calculations...")
 
 	# --- Perform Calculations & Print Results ---
-	# Pass the generated X_base, Y_base to the calculation function
-	results_string = run_calculations(X_base, Y_base, E, L, rho)
+	# Get both the results string and the frequency data dictionary
+	results_string, freq_data = run_calculations(X_base, Y_base, E, L, rho)
 	print(results_string)
 
 	print("Generating Plots...")
 
 	# --- Generate Plots ---
-	# Base profile is already generated (X_base, Y_base)
-
-	# Create a figure and a 2x2 subplot grid
 	fig, axes = plt.subplots(2, 2, figsize=(12, 10))
 	fig.suptitle('Blade Analysis Plots', fontsize=16)
 
@@ -132,9 +128,8 @@ def main():
 	ax3.grid(True)
 	ax3.legend()
 
-	# --- Plot 4: Empty (Bottom-Right) ---
+	# --- Plot 4: Summary Text (Bottom-Right) ---
 	ax4 = axes[1, 1]
-	ax4.text(0.5, 0.5, 'Plot Area 4 (Empty)', ha='center', va='center', fontsize=12, alpha=0.5)
 	ax4.set_xticks([])
 	ax4.set_yticks([])
 	ax4.spines['top'].set_visible(False)
@@ -142,8 +137,34 @@ def main():
 	ax4.spines['bottom'].set_visible(False)
 	ax4.spines['left'].set_visible(False)
 
+	# Construct the summary text using f-strings and data
+	# Using polynomial results as they are generally the most accurate for the profile
+	summary_text = (
+		f"Input Summary:\n"
+		f"-----------------\n"
+		f"Profile: NACA {profile_number}\n"
+		f"E: {E:.2e} N/m^2\n"
+		f"L: {L:.3f} m\n"
+		f"rho: {rho:.1f} kg/m^3\n"
+		f"Twist Factor: {twist}\n"
+		f"\n"
+		f"Modal Frequencies (Poly, Hz):\n"
+		f"------------------------------\n"
+		f"Lumped: {freq_data['lumped_poly']:.2f}\n"
+		f"Dist. M1: {freq_data['dist_poly'][0]:.2f}\n"
+		f"Dist. M2: {freq_data['dist_poly'][1]:.2f}\n"
+		f"Dist. M3: {freq_data['dist_poly'][2]:.2f}\n"
+		f"Dist. M4: {freq_data['dist_poly'][3]:.2f}"
+	)
+
+	# Add text to the axes
+	ax4.text(0.05, 0.95, summary_text, 
+			 ha='left', va='top', fontsize=10, 
+			 wrap=True, # Allow text wrapping
+			 family='monospace') # Use monospace font for alignment
+
 	# --- Final Adjustments & Display ---
-	plt.tight_layout(rect=[0, 0.03, 1, 0.95]) # Adjust layout to prevent title overlap
+	plt.tight_layout(rect=[0, 0.03, 1, 0.95])
 	plt.show()
 
 	print("Done.")
